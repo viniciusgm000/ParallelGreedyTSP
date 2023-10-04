@@ -9,9 +9,9 @@
 #include <limits.h>
 #include <math.h>
 
-#include <time.h>
+#include <omp.h>
 
-clock_t start, end;
+double start, end;
 double total_time;
 
 int min_distance;
@@ -140,10 +140,10 @@ int main (int argc, char **argv) {
     st = scanf("%u", &num_instances);
     if (st != 1) exit(1);
     while(num_instances-- > 0) {
-        start = clock();
+        start = omp_get_wtime();
         output_min = run_tsp();
-        end = clock();
-        total_time = ((double) (end - start)) / CLOCKS_PER_SEC;
+        end = omp_get_wtime();
+        total_time = (end - start);
         printf("%d %lf\n", output_min, total_time);
     }
     return 0;
