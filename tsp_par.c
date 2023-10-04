@@ -6,11 +6,14 @@
 #include <limits.h>
 #include <math.h>
 
+#include <time.h>
 #include <omp.h>
+
+clock_t start, end;
+double total_time;
 
 int min_distance;
 int nb_towns;
-// int max_depth_threads;
 
 typedef struct {
     int to_town;
@@ -166,17 +169,6 @@ void init_tsp() {
     }
     
     greedy_shortest_first_heuristic(x, y);
-
-    // here
-    // int nthreads = omp_get_max_threads();
-    // omp_set_num_threads(nthreads);
-
-    // int ntasks = 1;
-    // max_depth_threads = 0;
-    // while (ntasks < nthreads) {
-    //     ++max_depth_threads;
-    //     ntasks *= (nb_towns - max_depth_threads);
-    // }
     
     free(x);
     free(y);
@@ -199,10 +191,15 @@ int run_tsp() {
 }
 
 int main (int argc, char **argv) {
-    int num_instances, st;
+    int num_instances, st, output_min;
     st = scanf("%u", &num_instances);
     if (st != 1) exit(1);
-    while(num_instances-- > 0)
-        printf("%d\n", run_tsp());
+    while(num_instances-- > 0) {
+        start = clock();
+        output_min = run_tsp();
+        end = clock();
+        total_time = ((double) (end - start)) / CLOCKS_PER_SEC;
+        printf("%d %lf\n", output_min, total_time);
+    }
     return 0;
 }

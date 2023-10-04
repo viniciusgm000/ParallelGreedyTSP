@@ -9,6 +9,11 @@
 #include <limits.h>
 #include <math.h>
 
+#include <time.h>
+
+clock_t start, end;
+double total_time;
+
 int min_distance;
 int nb_towns;
 
@@ -131,10 +136,15 @@ int run_tsp() {
 }
 
 int main (int argc, char **argv) {
-    int num_instances, st;
+    int num_instances, st, output_min;
     st = scanf("%u", &num_instances);
     if (st != 1) exit(1);
-    while(num_instances-- > 0)
-        printf("%d\n", run_tsp());
+    while(num_instances-- > 0) {
+        start = clock();
+        output_min = run_tsp();
+        end = clock();
+        total_time = ((double) (end - start)) / CLOCKS_PER_SEC;
+        printf("%d %lf\n", output_min, total_time);
+    }
     return 0;
 }
