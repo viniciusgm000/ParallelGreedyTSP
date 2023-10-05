@@ -16,3 +16,7 @@ Release:	22.04
 Codename:	jammy
 -------------------------------- kernel
 6.2.0-33-generic
+-------------------------------- processor
+Ryzen 5 3600
+-------------------------------- RAM
+2x8 GB HyperX Fury 3000 MHz
