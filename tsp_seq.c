@@ -58,9 +58,7 @@ void greedy_shortest_first_heuristic(int *x, int *y) {
     int *tempdist;
 
     tempdist = (int*) malloc(sizeof(int) * nb_towns);
-    //Could be faster, albeit not as didactic.
-    //Anyway, for tractable sizes of the problem it
-    //runs almost instantaneously.
+    
     for (i = 0; i < nb_towns; i++) {
         for (j = 0; j < nb_towns; j++) {
             int dx = x[i] - x[j];

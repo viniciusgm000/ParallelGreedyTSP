@@ -1,5 +1,17 @@
+// Code parallelized by Vinicius Gabriel Machado - Master's student in Computer Science at UFPR
+
+// Sequential code by:
+
+/* WSCAD - 9th Marathon of Parallel Programming 
+ * Simple Brute Force Algorithm for the 
+ * Traveling-Salesman Problem
+ * Author: Emilio Francesquini - francesquini@ic.unicamp.br
+ */
+
+// Important environment variables:
+
 // export OMP_PROC_BIND=spread
-// export OMP_NUM_THREADS=6
+// export OMP_NUM_THREADS=n
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -52,7 +64,6 @@ void tsp_recursive (int depth, int current_length, int *path) {
 
 void tsp () {
     #pragma omp parallel default(none) shared(nb_towns, d_matrix, min_distance)
-    // #pragma omp for schedule(guided) nowait
     #pragma omp single nowait
     for (int i = 0; i < nb_towns; i++) {
         int path_threaded[nb_towns], town, dist;
@@ -86,9 +97,6 @@ void greedy_shortest_first_heuristic(int *x, int *y) {
     int *tempdist;
 
     tempdist = (int*) malloc(sizeof(int) * nb_towns);
-    //Could be faster, albeit not as didactic.
-    //Anyway, for tractable sizes of the problem it
-    //runs almost instantaneously.
     for (i = 0; i < nb_towns; i++) {
         for (j = 0; j < nb_towns; j++) {
             int dx = x[i] - x[j];
