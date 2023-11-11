@@ -206,7 +206,8 @@ int main (int argc, char **argv) {
         output_min = run_tsp();
         end = omp_get_wtime();
         total_time = (end - start);
-        printf("%d %lf\n", output_min, total_time);
+        // printf("%d %lf\n", output_min, total_time);
+	printf("%d\n", output_min);
     }
     return 0;
 }
