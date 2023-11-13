@@ -21,7 +21,6 @@
 int process_rank, n_process;
 MPI_Status status;
 MPI_Datatype MPI_D_INFO; // d info
-MPI_Datatype MPI_M_INFO; // message info
 
 // Define algorithm types and variables
 int min_distance;
@@ -64,6 +63,7 @@ void tsp_recursive (int depth, int current_length, int *path) {
 
 void tsp () {
     int path_threaded[nb_towns], depth, current_length, aux;
+    int message[nb_towns + 3];
     if (process_rank == 0) {
         for (int i = 0; i < nb_towns; i++) {
             int town, dist;
@@ -79,8 +79,8 @@ void tsp () {
 
                 for (int j = 0; j < nb_towns; j++) {
                     town = d_matrix[path_threaded[1] * nb_towns + j].to_town;
-                    if (!present (town, depth, path_threaded)) {
-                        dist = d_matrix[path_threaded[1] * nb_towns + j].dist;
+                    dist = current_length + d_matrix[path_threaded[1] * nb_towns + j].dist;
+                    if (!present (town, depth, path_threaded) && dist < min_distance) {
 
                         path_threaded[2] = town;
 
@@ -88,12 +88,15 @@ void tsp () {
                         MPI_Recv(&aux, 1, MPI_INT, MPI_ANY_SOURCE, STD_TAG, MPI_COMM_WORLD, &status);
                         if (aux < min_distance)
                             min_distance = aux;
-                        aux = depth + 1;
-                        MPI_Ssend(&aux, 1, MPI_INT, status.MPI_SOURCE, STD_TAG, MPI_COMM_WORLD);
-                        aux = current_length + dist;
-                        MPI_Ssend(&aux, 1, MPI_INT, status.MPI_SOURCE, STD_TAG, MPI_COMM_WORLD);
-                        MPI_Ssend(&min_distance, 1, MPI_INT, status.MPI_SOURCE, STD_TAG, MPI_COMM_WORLD);
-                        MPI_Ssend(path_threaded, nb_towns, MPI_INT, status.MPI_SOURCE, STD_TAG, MPI_COMM_WORLD);
+
+                        message[0] = depth + 1;
+                        message[1] = dist;
+                        message[2] = min_distance;
+
+                        for (int k = 3; k < nb_towns + 3; k++)
+                            message[k] = path_threaded[k - 3];
+
+                        MPI_Ssend(&message, nb_towns + 3, MPI_INT, status.MPI_SOURCE, STD_TAG, MPI_COMM_WORLD);
                     }
                 }
             }
@@ -103,24 +106,25 @@ void tsp () {
             MPI_Recv(&aux, 1, MPI_INT, MPI_ANY_SOURCE, STD_TAG, MPI_COMM_WORLD, &status);
             if (aux < min_distance)
                 min_distance = aux;
-            aux = -1;
-            MPI_Ssend(&aux, 1, MPI_INT, status.MPI_SOURCE, STD_TAG, MPI_COMM_WORLD);
+            message[0] = -1;
+            MPI_Ssend(&message, nb_towns + 3, MPI_INT, status.MPI_SOURCE, STD_TAG, MPI_COMM_WORLD);
         }
     } else {
         while (1) {
             // Receive depth + 1, current_length + dist, path_threaded
             aux = min_distance; // I don't know why, but I can't simply send min_distance
             MPI_Ssend(&aux, 1, MPI_INT, 0, STD_TAG, MPI_COMM_WORLD);
-            MPI_Recv(&depth, 1, MPI_INT, 0, STD_TAG, MPI_COMM_WORLD, &status);
+            MPI_Recv(&message, nb_towns + 3, MPI_INT, 0, STD_TAG, MPI_COMM_WORLD, &status);
 
-            if (depth == -1)
+            if (message[0] == -1)
                 break;
+            
+            min_distance = message[2];
 
-            MPI_Recv(&current_length, 1, MPI_INT, 0, STD_TAG, MPI_COMM_WORLD, &status);
-            MPI_Recv(&min_distance, 1, MPI_INT, 0, STD_TAG, MPI_COMM_WORLD, &status);
-            MPI_Recv(path_threaded, nb_towns, MPI_INT, 0, STD_TAG, MPI_COMM_WORLD, &status);
+            for (int k = 3; k < nb_towns + 3; k++)
+                path_threaded[k - 3] = message[k];
 
-            tsp_recursive(depth, current_length, path_threaded);
+            tsp_recursive(message[0], message[1], path_threaded);
         }
     }
 }
