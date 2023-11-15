@@ -11,8 +11,6 @@ mkdir -p $OUTPUT_OUTPUT_DIR
 
 rm $OUTPUT_OUTPUT_DIR/*
 
-make openmp_theoretical
-
 for i in 1 2 3 4 5 6 7 8 9 10; do
    for e in $EXECUTIONS; do
        for c in $CITIES; do
