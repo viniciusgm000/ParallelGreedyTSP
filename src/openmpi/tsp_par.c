@@ -15,6 +15,9 @@
 
 #include <mpi.h>
 
+double start, end;
+double total_time;
+
 #define STD_TAG 0
 
 // Define MPI types and variables
@@ -31,6 +34,13 @@ typedef struct {
     int dist;
 } d_info;
 
+typedef enum {
+    DEPTH,
+    CURRENT_LENGTH,
+    MIN_DISTANCE,
+    PATH_START
+} message_mapping;
+
 d_info *d_matrix;
 int *dist_to_origin;
 
@@ -45,16 +55,20 @@ void tsp_recursive (int depth, int current_length, int *path) {
     if (current_length >= min_distance) return;
     if (depth == nb_towns) {
         current_length += dist_to_origin[path[nb_towns - 1]];
+        
         if (current_length < min_distance)
             min_distance = current_length;
     } else {
         int town, me, dist;
         me = path[depth - 1];
+
         for (int i = 0; i < nb_towns; i++) {
             town = d_matrix[me * nb_towns + i].to_town;
+
             if (!present (town, depth, path)) {
                 path[depth] = town;
                 dist = d_matrix[me * nb_towns + i].dist;
+
                 tsp_recursive (depth + 1, current_length + dist, path);
             }
         }
@@ -62,69 +76,74 @@ void tsp_recursive (int depth, int current_length, int *path) {
 }
 
 void tsp () {
-    int path_threaded[nb_towns], depth, current_length, aux;
-    int message[nb_towns + 3];
+    int *path, depth, current_length;
+    int message[nb_towns + PATH_START];
+
+    // Avoid copying by mapping path into the message
+    path = message + PATH_START;
+
     if (process_rank == 0) {
+        int town, dist, depth;
         for (int i = 0; i < nb_towns; i++) {
-            int town, dist;
             current_length = d_matrix[i].dist;
 
-            int depth = 1;
+            depth = 1;
             town = d_matrix[i].to_town;
             
-            path_threaded[0] = 0;
-            if (!present (town, depth, path_threaded) & (current_length < min_distance)) {
-                path_threaded[1] = town;
+            path[0] = 0;
+
+            if (!present (town, depth, path)) {
+                path[1] = town;
                 depth = 2;
 
                 for (int j = 0; j < nb_towns; j++) {
-                    town = d_matrix[path_threaded[1] * nb_towns + j].to_town;
-                    dist = current_length + d_matrix[path_threaded[1] * nb_towns + j].dist;
-                    if (!present (town, depth, path_threaded) && dist < min_distance) {
+                    town = d_matrix[path[1] * nb_towns + j].to_town;
+                    dist = current_length + d_matrix[path[1] * nb_towns + j].dist;
+                    
+                    if (!present (town, depth, path) && dist < min_distance) {
+                        path[2] = town;
 
-                        path_threaded[2] = town;
+                        // Receive process min_distance and send more work (length/depth/path) with current min_distance
+                        MPI_Recv (&message[MIN_DISTANCE], 1, MPI_INT, MPI_ANY_SOURCE, STD_TAG, MPI_COMM_WORLD, &status);
 
-                        // send depth + 1, current_length + dist, path_threaded as requested by available processes
-                        MPI_Recv(&aux, 1, MPI_INT, MPI_ANY_SOURCE, STD_TAG, MPI_COMM_WORLD, &status);
-                        if (aux < min_distance)
-                            min_distance = aux;
+                        if (message[MIN_DISTANCE] < min_distance)
+                            min_distance = message[MIN_DISTANCE];
 
-                        message[0] = depth + 1;
-                        message[1] = dist;
-                        message[2] = min_distance;
+                        message[DEPTH] = depth + 1;
+                        message[CURRENT_LENGTH] = dist;
+                        message[MIN_DISTANCE] = min_distance;
+                        // path already mapped into the message
 
-                        for (int k = 3; k < nb_towns + 3; k++)
-                            message[k] = path_threaded[k - 3];
-
-                        MPI_Ssend(&message, nb_towns + 3, MPI_INT, status.MPI_SOURCE, STD_TAG, MPI_COMM_WORLD);
+                        MPI_Ssend (&message, nb_towns + PATH_START, MPI_INT, status.MPI_SOURCE, STD_TAG, MPI_COMM_WORLD);
                     }
                 }
             }
         }
 
+        // No more work to be done, await for processes to send a finalize signal
+        message[DEPTH] = -1;
         for (int i = n_process - 1; i > 0; i--) {
-            MPI_Recv(&aux, 1, MPI_INT, MPI_ANY_SOURCE, STD_TAG, MPI_COMM_WORLD, &status);
-            if (aux < min_distance)
-                min_distance = aux;
-            message[0] = -1;
-            MPI_Ssend(&message, nb_towns + 3, MPI_INT, status.MPI_SOURCE, STD_TAG, MPI_COMM_WORLD);
+            MPI_Recv (&message[MIN_DISTANCE], 1, MPI_INT, MPI_ANY_SOURCE, STD_TAG, MPI_COMM_WORLD, &status);
+
+            if (message[MIN_DISTANCE] < min_distance)
+                min_distance = message[MIN_DISTANCE];
+
+            MPI_Ssend (&message, nb_towns + PATH_START, MPI_INT, status.MPI_SOURCE, STD_TAG, MPI_COMM_WORLD);
         }
     } else {
         while (1) {
-            // Receive depth + 1, current_length + dist, path_threaded
-            aux = min_distance; // I don't know why, but I can't simply send min_distance
-            MPI_Ssend(&aux, 1, MPI_INT, 0, STD_TAG, MPI_COMM_WORLD);
-            MPI_Recv(&message, nb_towns + 3, MPI_INT, 0, STD_TAG, MPI_COMM_WORLD, &status);
+            // Send current min_distance (asking for more work) and receive more work (length/depth/path) with current min_distance
+            MPI_Ssend (&min_distance, 1, MPI_INT, 0, STD_TAG, MPI_COMM_WORLD);
+            MPI_Recv (&message, nb_towns + PATH_START, MPI_INT, 0, STD_TAG, MPI_COMM_WORLD, &status);
 
-            if (message[0] == -1)
+            // No more work to be done
+            if (message[DEPTH] == -1)
                 break;
             
-            min_distance = message[2];
+            min_distance = message[MIN_DISTANCE];
 
-            for (int k = 3; k < nb_towns + 3; k++)
-                path_threaded[k - 3] = message[k];
-
-            tsp_recursive(message[0], message[1], path_threaded);
+            // No need to copy path
+            tsp_recursive (message[DEPTH], message[CURRENT_LENGTH], message + PATH_START);
         }
     }
 }
@@ -161,33 +180,33 @@ void greedy_shortest_first_heuristic(int *x, int *y) {
     free(tempdist);
 }
 
-void show_distances() {
-    int i, j;
+// void show_distances() {
+//     int i, j;
 
-    printf("To Town:\n");
+//     printf("To Town:\n");
 
-    for (i = 0; i < nb_towns; i++) {
-        for (j = 0; j < nb_towns; j++)
-            printf("%d\t", d_matrix[i * nb_towns + j].to_town);
-        printf("\n");
-    }
+//     for (i = 0; i < nb_towns; i++) {
+//         for (j = 0; j < nb_towns; j++)
+//             printf("%d\t", d_matrix[i * nb_towns + j].to_town);
+//         printf("\n");
+//     }
 
-    printf("Distance:\n");
+//     printf("Distance:\n");
 
-    for (i = 0; i < nb_towns; i++) {
-        for (j = 0; j < nb_towns; j++)
-            printf("%d\t", d_matrix[i * nb_towns + j].dist);
-        printf("\n");
-    }
+//     for (i = 0; i < nb_towns; i++) {
+//         for (j = 0; j < nb_towns; j++)
+//             printf("%d\t", d_matrix[i * nb_towns + j].dist);
+//         printf("\n");
+//     }
 
-    printf("Distance to Origin:\n");
+//     printf("Distance to Origin:\n");
 
-    for (i = 0; i < nb_towns; i++)
-        printf("%d\t", dist_to_origin[i]);
+//     for (i = 0; i < nb_towns; i++)
+//         printf("%d\t", dist_to_origin[i]);
 
-    printf("\n");
+//     printf("\n");
     
-}
+// }
 
 void init_tsp() {
     int i, st;
@@ -206,26 +225,24 @@ void init_tsp() {
     d_matrix = (d_info*) malloc (sizeof(d_info) * nb_towns * nb_towns);
     dist_to_origin = (int*) malloc(sizeof(int) * nb_towns);
     
-    if (process_rank == 0) {
-        int *x, *y;
+    int *x, *y;
 
-        x = (int*) malloc(sizeof(int) * nb_towns);
-        y = (int*) malloc(sizeof(int) * nb_towns);
+    // Allocate contiguous memory for both x and y
+    x = (int*) malloc(sizeof(int) * nb_towns * 2);
+    y = x + nb_towns;
 
+    if (process_rank == 0)
         for (i = 0; i < nb_towns; i++) {
             st = scanf("%u %u", x + i, y + i);
             if (st != 2) exit(1);
         }
-        
-        greedy_shortest_first_heuristic(x, y);
 
-        free(x);
-        free(y);
-    }
+    // Send x and y - it's a little faster than sending the final matrix
+    MPI_Bcast(x, nb_towns * 2, MPI_INT, 0, MPI_COMM_WORLD);
+    
+    greedy_shortest_first_heuristic(x, y);
 
-    // Send d_matrix and dist_to_origin
-    MPI_Bcast(d_matrix, nb_towns*nb_towns, MPI_D_INFO, 0, MPI_COMM_WORLD);
-    MPI_Bcast(dist_to_origin, nb_towns, MPI_INT, 0, MPI_COMM_WORLD);
+    free(x);
 }
 
 void run_tsp() {
@@ -263,10 +280,13 @@ int main (int argc, char **argv) {
     MPI_Type_commit(&MPI_D_INFO);
 
     while(num_instances-- > 0) {
+        start = MPI_Wtime();
         run_tsp();
+        end = MPI_Wtime();
+        total_time = end - start;
 
         if (process_rank == 0)
-	        printf("%d\n", min_distance);
+	        printf("%d %lf\n", min_distance, total_time);
     }
 
     MPI_Finalize();
