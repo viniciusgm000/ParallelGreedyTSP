@@ -15,40 +15,40 @@ else
     case "$1" in
     "openmp_exp")
         # if openmp and experimental
-        cp $SCRIPTS_DIR/openmp/run_experimental.sh .
+        cp $SCRIPTS_DIR/openmp/run_experimental_test.sh .
         cd $SRC_DIR
         make openmp_experimental
         cd -
         cp $SRC_DIR/tsp_* .
         
-        ./run_experimental.sh
+        ./run_experimental_test.sh
 
-        rm run_experimental.sh tsp_*
+        rm run_experimental_test.sh tsp_*
     ;;
     "openmp_the")
         # if openmp and theoretical
-        cp $SCRIPTS_DIR/openmp/run_theoretical.sh .
+        cp $SCRIPTS_DIR/openmp/run_theoretical_test.sh .
         cd $SRC_DIR
         make openmp_theoretical
         cd -
         cp $SRC_DIR/tsp_* .
 
-        ./run_theoretical.sh
+        ./run_theoretical_test.sh
 
-        rm run_theoretical.sh tsp_*
+        rm run_theoretical_test.sh tsp_*
     ;;
     "openmpi_exp")
         # if openmpi and experimental
         cp $SRC_DIR/hostlist.template .
-        cp $SCRIPTS_DIR/openmpi/run_experimental.sh .
+        cp $SCRIPTS_DIR/openmpi/run_experimental_test.sh .
         cd $SRC_DIR
         make openmpi_experimental
         cd -
         cp $SRC_DIR/tsp_* .
 
-        ./run_experimental.sh
+        ./run_experimental_test.sh
 
-        rm run_experimental.sh hostlist* tsp_*
+        rm run_experimental_test.sh hostlist* tsp_*
     ;;
     *)
         echo "Invalid Option - available options:"

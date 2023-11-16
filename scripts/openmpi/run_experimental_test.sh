@@ -24,11 +24,11 @@ for i in 1 2 3 4 5 6 7 8 9 10; do
     for p in $PROCESSES; do
         cp hostlist.template hostlist
         k=$(($p + "1"))
-        sed -i "'s/<NUMBER_PROCESSES>/"$k"/g'" hostlist
+        sed -i 's/<NUMBER_PROCESSES>/'$k'/g' hostlist
         for e in $EXECUTIONS; do
             for c in $CITIES; do
                 echo $i"_par_"$c"_cities_"$e"_executions_"$p"_processes"
-                mpirun --hostfile hostlist --mca mpi_yield_when_idle true tsp_par < $INPUT_DIR/$c"_cities_"$e"_executions.in" > $OUTPUT_RESULTS_DIR/$i"_par_"$c"_cities_"$e"_executions_"$p"_processes_result.out"
+                mpirun --hostfile hostlist tsp_par < $INPUT_DIR/$c"_cities_"$e"_executions.in" > $OUTPUT_RESULTS_DIR/$i"_par_"$c"_cities_"$e"_executions_"$p"_processes_result.out"
             done
         done
     done
