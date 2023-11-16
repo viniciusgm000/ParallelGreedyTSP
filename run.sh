@@ -19,7 +19,7 @@ else
         cd $SRC_DIR
         make openmp_experimental
         cd -
-        cp $SRC_DIR/tsp_* .
+        mv $SRC_DIR/tsp_* .
         
         ./run_experimental_test.sh
 
@@ -31,7 +31,7 @@ else
         cd $SRC_DIR
         make openmp_theoretical
         cd -
-        cp $SRC_DIR/tsp_* .
+        mv $SRC_DIR/tsp_* .
 
         ./run_theoretical_test.sh
 
@@ -44,7 +44,7 @@ else
         cd $SRC_DIR
         make openmpi_experimental
         cd -
-        cp $SRC_DIR/tsp_* .
+        mv $SRC_DIR/tsp_* .
 
         ./run_experimental_test.sh
 
