@@ -50,12 +50,26 @@ else
 
         rm run_experimental_test.sh hostlist* tsp_*
     ;;
+    "openmpi_the")
+        # if openmpi and theoretical
+        cp $SRC_DIR/hostlist.template .
+        cp $SCRIPTS_DIR/openmpi/run_theoretical_test.sh .
+        cd $SRC_DIR
+        make openmpi_theoretical
+        cd -
+        mv $SRC_DIR/tsp_* .
+
+        ./run_theoretical_test.sh
+
+        rm run_theoretical_test.sh hostlist* tsp_*
+    ;;
     *)
         echo "Invalid Option - available options:"
         echo "generate - Generates random inputs in the ./input/ directory"
         echo "openmp_exp - Runs the experimental tests for OpenMP"
         echo "openmp_the - Runs the theoretical tests for OpenMP"
         echo "openmpi_exp - Runs the experimental tests for OpenMPI"
+        echo "openmpi_the - Runs the theoretical tests for OpenMPI"
     ;;
     esac
 fi
