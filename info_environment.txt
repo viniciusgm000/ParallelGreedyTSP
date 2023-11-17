@@ -20,3 +20,5 @@ Codename:	jammy
 Ryzen 5 3600
 -------------------------------- RAM
 2x8 GB HyperX Fury 3000 MHz
+-------------------------------- MPIRUN
+mpirun (Open MPI) 4.1.2
